@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Catalogue de la bibliothèque</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { color: #FF7900; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #ddd; padding: .5rem; text-align: left; }
+    button { cursor: pointer; }
+    form { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    input { padding: .4rem; }
+  </style>
+</head>
+<body>
+  <h1>Catalogue de la bibliothèque</h1>
+
+  <form id="form-ajout">
+    <input name="titre" placeholder="Titre" required>
+    <input name="auteur" placeholder="Auteur">
+    <input name="annee" placeholder="Année" type="number">
+    <input name="genre" placeholder="Genre">
+    <button type="submit">Ajouter</button>
+  </form>
+
+  <table>
+    <thead><tr><th>Titre</th><th>Auteur</th><th>Année</th><th>Genre</th><th>Disponible</th><th></th></tr></thead>
+    <tbody id="liste"></tbody>
+  </table>
+
+  <script>
+    const API = "/api/livres";
+
+    async function charger() {
+      const reponse = await fetch(API);
+      const livres = await reponse.json();
+      const tbody = document.getElementById("liste");
+      tbody.innerHTML = "";
+      for (const l of livres) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${l.titre ?? ""}</td><td>${l.auteur ?? ""}</td><td>${l.annee ?? ""}</td><td>${l.genre ?? ""}</td>
+          <td>${l.disponible ? "oui" : "non"}</td>
+          <td>
+            <button data-action="basculer" data-id="${l._id}" data-dispo="${l.disponible}">${l.disponible ? "Emprunter" : "Rendre"}</button>
+            <button data-action="supprimer" data-id="${l._id}">Supprimer</button>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    document.getElementById("form-ajout").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      if (data.annee) data.annee = Number(data.annee);
+      await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      e.target.reset();
+      charger();
+    });
+
+    document.getElementById("liste").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (btn.dataset.action === "supprimer") {
+        await fetch(`${API}/${id}`, { method: "DELETE" });
+      } else {
+        const nouvelleDispo = btn.dataset.dispo !== "true";
+        await fetch(`${API}/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ disponible: nouvelleDispo }) });
+      }
+      charger();
+    });
+
+    charger();
+  </script>
+</body>
+</html>
